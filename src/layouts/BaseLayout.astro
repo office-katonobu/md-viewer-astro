@@ -1,14 +1,25 @@
 ---
+/* src/layouts/BaseLayout.astro */
+import '../styles/global.css'; // Tailwind v4のスタイルをここで読み込む
+
 const { title } = Astro.props;
 ---
 <html lang="ja">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
     <title>{title}</title>
   </head>
-  <body style="font-family: sans-serif; padding: 2rem; background: #f8fafc; color: #334155;">
-    <main style="max-w: 800px; margin: 0 auto; background: white; padding: 2rem; border-radius: 8px;">
-      <slot />
+  {/* 背景色を薄いグレー(bg-slate-50)に、文字色を少しマイルド(text-slate-800)に */}
+  <body class="bg-slate-50 text-slate-800 p-8">
+    {/* 中央寄せの白いカード型のコンテナを作成 */}
+    <main class="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-sm">
+      {/* prose クラスを付与することで、中のMarkdown（h1, p, ul等）に 
+        美しい文字サイズ、余白、箇条書きのスタイルが自動適用されます 
+      */}
+      <article class="prose prose-slate max-w-none">
+        <slot />
+      </article>
     </main>
   </body>
 </html>
