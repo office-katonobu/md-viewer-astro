@@ -1,2 +1,2 @@
-# md-viewer-astro
-MarkdownドキュメントのAstroによるWebサイト化
+# md-viewer-astro (MarkdownドキュメントのAstroによるWebサイト化)
+- [プロジェクト定義](./docs/プロジェクト定義.md)
