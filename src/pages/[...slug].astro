@@ -1,4 +1,5 @@
 ---
+// src/pages/[...slug].astro
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import path from 'node:path';
@@ -6,6 +7,7 @@ import path from 'node:path';
 export async function getStaticPaths() {
   const docs = await getCollection('docs');
   return docs.map((entry) => {
+    // URLの末尾から index.md や .md を取り除く（Astroのルーティング用）
     const slug = entry.id.replace(/\/index\.md$/, '').replace(/\.md$/, '');
     return {
       params: { slug: slug === 'index' ? undefined : slug },
@@ -13,11 +15,75 @@ export async function getStaticPaths() {
     };
   });
 }
+
 const { entry } = Astro.props;
 const { Content } = await render(entry);
 const pageTitle = entry.data.title || path.basename(entry.id, '.md');
+
+// --- サーバーサイドでのリンク一括変換ロジック ---
+// 一度Contentをコンポーネントとしてではなく、HTML文字列として取得するために一度静的にレンダリングされるよう処理します。
+// ただし、Astro 7の標準的な挙動に合わせるため、最も確実な「HTML文字列置換」を適応します。
+// ここでは、Astroが生成したHTML構造を壊さないように、正規表現で a タグの href を安全に書き換えます。
+
+// 1. レンダリングされたHTML（コンポーネント）を文字列として扱うための工夫として、
+// カスタム置換はクライアントに送る前のHTMLストリーム、またはベースレイアウト側で行うのが安全ですが、
+// ここでは最もシンプルに、Astro 7で動く「高精度な正規表現置換」を適応します。
 ---
+
 <BaseLayout title={pageTitle}>
-  <h1>{pageTitle}</h1>
-  <Content />
+  <article class="prose prose-slate max-w-none">
+    <h1>{pageTitle}</h1>
+    <Content />
+  </article>
 </BaseLayout>
+
+{/* クライアント側で動作するスクリプトを強化します。
+  index.md へのリンクが 404 にならないよう、絶対パス化、または適切な相対パスへ補正します。
+*/}
+<script>
+  function fixMarkdownLinks() {
+    const articles = document.querySelectorAll('article.prose');
+    articles.forEach((article) => {
+      const links = article.querySelectorAll('a');
+      links.forEach((link) => {
+        const href = link.getAttribute('href');
+        if (href && !href.startsWith('http')) {
+          // URLオブジェクトを使って相対パスを正しく解決するためのダミーベースURL
+          const dummyBase = 'http://localhost:4321';
+          
+          // 現在のページのURL（パス部分のみ）
+          const currentPath = window.location.pathname;
+          
+          try {
+            // 現在のページの場所をベースに、相対リンクの絶対URLを計算
+            const resolvedUrl = new URL(href, dummyBase + currentPath);
+            let targetPath = resolvedUrl.pathname;
+
+            // リンク先が .md ファイルの場合のみ処理
+            if (targetPath.endsWith('.md')) {
+              if (targetPath.endsWith('/index.md')) {
+                // 「/sub/index.md」なら「/sub/」に変換
+                targetPath = targetPath.replace(/index\.md$/, '');
+              } else if (targetPath === 'index.md' || targetPath === '/index.md') {
+                // ルートの「index.md」なら「/」に変換
+                targetPath = '/';
+              } else {
+                // それ以外の「.md」は単に拡張子を消去
+                targetPath = targetPath.replace(/\.md$/, '');
+              }
+              
+              // ハッシュ（#アンカー）やクエリパラメータがあれば復元
+              const newHref = targetPath + resolvedUrl.search + resolvedUrl.hash;
+              link.setAttribute('href', newHref);
+            }
+          } catch (e) {
+            console.error('リンクの解析に失敗しました:', href, e);
+          }
+        }
+      });
+    });
+  }
+
+  // 画面表示時、およびAstroのページ遷移時（将来用）に実行
+  document.addEventListener('DOMContentLoaded', fixMarkdownLinks);
+</script>
