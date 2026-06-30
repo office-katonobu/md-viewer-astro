@@ -1,38 +1,55 @@
 ---
-/* src/layouts/BaseLayout.astro */
+// =========================================================================
+// 🔲 src/layouts/BaseLayout.astro
+// 役割: 全体の画面レイアウト、および「ファイル先・フォルダ後」のツリー表示、
+//       自動連動サイドバーメニューを管理する
+// =========================================================================
+
 import '../styles/global.css';
 import { getCollection } from 'astro:content';
 import path from 'node:path';
 
-const { title } = Astro.props;
-
-// 1. 全てのドキュメント（Markdown）を取得
+// [...slug].astro から自動解析された「本文内の本物の外部リンク」を受信（無ければ空配列）
+const { title, externalLinks = [] } = Astro.props;
 const allDocs = await getCollection('docs');
 
-// 2. サイドバー用にデータを整理（URLとタイトル、階層情報を並べる）
-// ※ index.md は除外し、各ページのリンクを生成します
-const sidebarItems = allDocs
-  .map((doc) => {
-    const slug = doc.id.replace(/\/index\.md$/, '').replace(/\.md$/, '');
-    const url = slug === 'index' ? '/' : `/${slug}`;
-    const displayTitle = doc.data.title || path.basename(doc.id, '.md');
-    
-    // フォルダ階層の深さを測る（スラッシュの数）
-    const depth = doc.id.split('/').length - 1;
+/**
+ * 🌲 【データ構造の設計】フォルダ階層ツリーをメモリ上に組み立てる
+ * Astroのフラットなファイル一覧を、入れ子状のオブジェクトに変換します。
+ * { folders: { "手順書": { folders: {}, files: [...] } }, files: [...] }
+ */
+const tree = { folders: {}, files: [] };
 
-    return {
-      id: doc.id,
-      url,
-      title: displayTitle,
-      depth,
-      isIndex: doc.id.endsWith('index.md')
-    };
-  })
-  // ルートの index.md 以外をサイドバーに表示（お好みで調整可能）
-  .filter(item => item.url !== '/');
+allDocs.forEach((doc) => {
+  // ルーティング用の正規化スラッグ（URL）の計算
+  const slug = doc.id.replace(/\/index\.md$/, '').replace(/\.md$/, '');
+  const url = slug === 'index' ? '/' : `/${slug}`; 
+  const displayTitle = doc.data.title || path.basename(doc.id, '.md');
 
-// 現在のページのURL（アクティブなメニューをハイライトするため）
-const currentPath = Astro.url.pathname;
+  // ルート直下のindex.mdは、サイドバーではなく「ドキュメントTOP」ボタンに割り当てるためスキップ
+  if (slug === 'index') return;
+
+  // "手順書/アクセス確認手順書.md" のようにスラッシュで分解して階層を追う
+  const parts = doc.id.split('/');
+  let currentDir = tree; // ルートの木からスタート
+
+  // 最後の要素（ファイル名）の手前までループして、フォルダ階層を掘り下げる
+  for (let i = 0; i < parts.length - 1; i++) {
+    const folderName = parts[i];
+    if (!currentDir.folders[folderName]) {
+      // まだ存在しないフォルダ名なら、新しく入れ子の箱（オブジェクト）を作成
+      currentDir.folders[folderName] = { folders: {}, files: [] };
+    }
+    currentDir = currentDir.folders[folderName]; // 掘り下げたフォルダを次の現在地にする
+  }
+
+  // 掘り当てた最深のフォルダ内の files 配列に、ファイル情報を格納
+  currentDir.files.push({
+    url,
+    title: displayTitle,
+    isIndex: doc.id.endsWith('index.md') // 各フォルダの概要ファイルかどうかの判定フラグ
+  });
+});
 ---
 <html lang="ja">
   <head>
@@ -41,55 +58,145 @@ const currentPath = Astro.url.pathname;
     <title>{title}</title>
   </head>
   <body class="bg-slate-50 text-slate-800">
-    
-    {/* 画面全体を包むコンテナ（横並びのレイアウトを定義） */}
     <div class="flex min-h-screen max-w-7xl mx-auto">
       
-      {/* ─── 左側：サイドバーメニュー ─── */}
-      <aside class="w-64 bg-white border-r border-slate-200 p-6 sticky top-0 h-screen overflow-y-auto">
-        <div class="mb-6">
-          <a href="/" class="text-xl font-bold text-slate-900 no-underline">🏠 ドキュメントTOP</a>
-        </div>
-        
-        <nav class="space-y-1">
-          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">ページ一覧</p>
-          <ul class="space-y-1 pl-0 list-none">
-            {sidebarItems.map((item) => {
-              // 現在開いているページかどうかを判定
-              const isActive = currentPath === item.url || currentPath === `${item.url}/`;
+      <aside class="w-64 bg-white border-r border-slate-200 p-6 sticky top-0 h-screen overflow-y-auto flex flex-col justify-between">
+        <div class="space-y-6">
+          
+          <div>
+            <a href="/" class="text-xl font-bold text-slate-900 no-underline">🏠 ドキュメントTOP</a>
+          </div>
+          
+          <nav class="space-y-6">
+            <div>
+              <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">📁 ドキュメントツリー</p>
               
-              // 階層（depth）に応じて左側に余白（インデント）を作る
-              const paddingLeft = item.depth > 0 ? `${item.depth * 12}px` : '0px';
+              {/* IIFE（即時実行関数）を使い、ツリー構造を深さ優先で再帰描画する */}
+              {((renderTree) => {
+                const renderNode = (node) => {
+                  return (
+                    <ul class="pl-3 list-none space-y-1 border-l border-slate-100 ml-1">
+                      
+                      {/* 【改善要望1】同一階層内で、常に「ファイル（📄）」を先にすべて描画する */}
+                      {node.files.map((file) => (
+                        <li>
+                          <a 
+                            href={encodeURI(file.url)} 
+                            data-raw-url={file.url} // JavaScriptのハイライト判定用に生パスを記録
+                            class="sidebar-file block py-1.5 px-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors no-underline"
+                          >
+                            {file.isIndex ? `📑 概要 (index)` : `📄 ${file.title}`}
+                          </a>
+                        </li>
+                      ))}
 
-              return (
-                <li style={{ paddingLeft }}>
-                  <a
-                    href={item.url}
-                    class={`block py-1.5 px-3 rounded-lg text-sm font-medium transition-colors no-underline ${
-                      isActive
-                        ? 'bg-blue-50 text-blue-600 font-semibold' // アクティブ時のデザイン
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' // 通常時のデザイン
-                    }`}
-                  >
-                    {item.isIndex ? `📁 ${item.title}` : `📄 ${item.title}`}
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+                      {/* 【改善要望2】ファイルの描画がすべて終わった後、下部に「フォルダ（📁）」を配置する */}
+                      {Object.keys(node.folders).map((folderName) => (
+                        <li>
+                          {/* 初期状態は open 属性を持たせない（＝デフォルト全閉じ） */}
+                          {/* 後述のJSから合致判定させるため、生のフォルダ名とURLエンコード名の両方を属性に持たせる */}
+                          <details class="group" data-folder-raw={folderName} data-folder-encoded={encodeURIComponent(folderName)}>
+                            <summary class="font-medium text-sm text-slate-700 hover:text-slate-900 cursor-pointer list-none py-1 px-2 rounded-lg hover:bg-slate-50 flex items-center justify-between">
+                              <span class="flex items-center gap-1.5">📁 {folderName}</span>
+                              <span class="text-xs text-slate-400 group-open:rotate-90 transition-transform">▶</span>
+                            </summary>
+                            {/* 自分自身のフォルダ内を掘り下げるため、再帰的（ループの入れ子）に再コール */}
+                            {renderNode(node.folders[folderName])}
+                          </details>
+                        </li>
+                      ))}
+
+                    </ul>
+                  );
+                };
+                return renderNode(tree); // メモリ上に組んだツリーの根本（ルート）を渡して一斉描画開始
+              })()}
+            </div>
+
+            {externalLinks.length > 0 && (
+              <div>
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">🔗 本文内の外部リンク</p>
+                <ul class="pl-1 list-none space-y-1">
+                  {externalLinks.map((link) => (
+                    <li>
+                      <a 
+                        href={link.url} 
+                        target="_blank"             // メニューからの外部リンククリックも別タブに固定
+                        rel="noopener noreferrer" 
+                        class="block py-1.5 px-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors no-underline flex items-center justify-between group"
+                      >
+                        <span class="truncate pr-2">🔗 {link.title}</span>
+                        <span class="text-xs text-slate-300 group-hover:text-slate-400 transition-colors flex-shrink-0">↗</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </nav>
+        </div>
       </aside>
 
-      {/* ─── 右側：メイン本文 ─── */}
       <main class="flex-1 bg-white p-12 overflow-x-hidden">
         <div class="max-w-3xl mx-auto">
           <article class="prose prose-slate max-w-none">
-            <slot />
-          </article>
+            <slot /> </article>
         </div>
       </main>
 
     </div>
 
+    <script>
+      function initSidebarDynamicBehavior() {
+        // 現在のブラウザのアドレスバーのパス名を取得し、先頭と末尾の不要なスラッシュを取り除く
+        // 例: "/procedures/%E3%82%A2%E3%82%AF..." ➔ "procedures/%E3%82%A2%E3%82%AF..."
+        const currentPath = window.location.pathname.replace(/^\/|\/$/g, '');
+        if (!currentPath) return; // トップページの場合は親フォルダがないため処理終了
+
+        // URLパスを階層の配列に分解（例: ["procedures", "%E3%82%A2%E3%82%AF..."]）
+        const pathParts = currentPath.split('/');
+
+        // ─────────────────────────────────────────────────────────────────
+        // 【仕掛け1】URLに対応する親フォルダだけをピンポイントで全自動自動開閉（open）する
+        // ─────────────────────────────────────────────────────────────────
+        pathParts.forEach((part) => {
+          // パーセント表記の暗号（%E3...）を、生の日本語（"手順書"等）に戻す
+          const decodedPart = decodeURIComponent(part);
+          
+          // 生のフォルダ名、またはエンコード名が合致する <details> タグをDOMから即座に一本釣り
+          const folderElement = document.querySelector(
+            `details[data-folder-raw="${decodedPart}"], details[data-folder-encoded="${part}"]`
+          );
+          
+          if (folderElement) {
+            // 見つかった親フォルダに open="true" を強制付与して、自動展開させる
+            folderElement.setAttribute('open', 'true');
+          }
+        });
+
+        // ─────────────────────────────────────────────────────────────────
+        // 【仕掛け2】現在表示しているアクティブなファイルメニューのハイライト（青色化）
+        // ─────────────────────────────────────────────────────────────────
+        const links = document.querySelectorAll('.sidebar-file');
+        links.forEach((link) => {
+          const rawUrl = link.getAttribute('data-raw-url');
+          if (rawUrl) {
+            const targetPath = rawUrl.replace(/^\/|\/$/g, '');
+            
+            // 生のパス、またはエンコード後のパスのどちらかが現在のURLと合致するか判定
+            if (targetPath === currentPath || encodeURI(targetPath) === currentPath) {
+              // 標準のグレーの配色クラスを除去
+              link.classList.remove('text-slate-600', 'hover:bg-slate-100', 'hover:text-slate-900');
+              
+              // TailwindCSSのクラスを追加し、鮮やかな青色背景＋太字にトランスフォームさせる
+              link.classList.add('bg-blue-50', 'text-blue-600', 'font-semibold');
+            }
+          }
+        });
+      }
+
+      // HTMLの読み込みが終わり、ブラウザでレンダリングが完了したタイミングでサイドバーの連動を点火
+      document.addEventListener('DOMContentLoaded', initSidebarDynamicBehavior);
+    </script>
   </body>
 </html>
