@@ -99,7 +99,7 @@ const printSetTitle = "監査用ドキュメント一式";
         </header>
         
         <div class="markdown-content">
-          <div set:html={doc.rendered.html} />
+          {doc.rendered && <div set:html={doc.rendered.html} />}          
         </div>
 
         <footer class="no-print-screen print-only" style="margin-top: 2rem; border-top: 1px dashed #ccc; padding-top: 1rem;">
@@ -107,6 +107,6 @@ const printSetTitle = "監査用ドキュメント一式";
         </footer>
       </article>
     ))}
-    <LinkFixer />
+    <LinkFixer mode="anchor" />
   </body>
 </html>

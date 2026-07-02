@@ -1,0 +1,26 @@
+---
+// src/components/LinkDebugInfo.astro
+import type { CollectionEntry } from 'astro:content';
+interface Props {
+  entry: CollectionEntry<'docs'>;
+  externalLinks: { title: string; url: string }[];
+  currentPath: string;
+}
+const { entry, externalLinks, currentPath } = Astro.props;
+const isDebugEnabled = import.meta.env.PUBLIC_ENABLE_DEBUG === 'true';
+---
+
+{isDebugEnabled && (
+  <div style="background: #f8fafc; border: 2px solid #64748b; padding: 1.25rem; margin-bottom: 2rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: #1e293b;">
+    <p style="margin: 0 0 0.5rem 0; font-weight: bold; color: #334155; font-size: 1rem;">⚙️ システム内部認識ステータス (Debug Mode)</p>
+    <ul style="margin: 0 0 1rem 0; padding-left: 1.25rem; line-height: 1.5;">
+      <li><strong>解析中のファイルID:</strong> {entry.id}</li>
+      <li><strong>現在のURLパス:</strong> {currentPath}</li>
+      <li><strong>検出された外部リンク数:</strong> {externalLinks.length} 件</li>
+    </ul>
+    <p style="margin: 1rem 0 0.25rem 0; font-weight: bold; color: #334155;">📋 ページ内Markdownリンクのリアルタイム補正ログ</p>
+    <div id="debug-log-area" style="background: white; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; max-height: 120px; overflow-y: auto; color: #475569; line-height: 1.6;">
+      ページ内のHTMLリンクをスキャン中...
+    </div>
+  </div>
+)}

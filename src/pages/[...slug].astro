@@ -1,187 +1,52 @@
 ---
-// =========================================================================
-// 📄 src/pages/[...slug].astro
-// 役割: Markdownドキュメントの個別ページを生成し、リンクの自動補正ロジックを管理する
-// =========================================================================
-
+// src/pages/[...slug].astro
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import LinkFixer from '../components/LinkFixer.astro';
+import LinkDebugInfo from '../components/LinkDebugInfo.astro';
 import path from 'node:path';
 
-/**
- * 🛠️ Astro固有の関数: 動的ルーティング用の全パスを事前生成する
- * docsコレクション内にあるすべてのMarkdownファイルに対応するURLパターンを定義します。
- */
 export async function getStaticPaths() {
   const docs = await getCollection('docs');
   return docs.map((entry) => {
-    // 物理ファイルパス（例: "手順書/index.md" や "01_方針.md"）から、
-    // ルーティングの邪魔になる末尾の拡張子や "/index" を削ってクリーンなURLキー（slug）を作る
-    const slug = entry.id.replace(/\/index\.md$/, '').replace(/\.md$/, '');
-    
+    const slug = entry.id.replace(/\/index$/, '').replace(/\.md$/, '');
     return {
-      // slug が 'index'（トップページ）の場合は undefined にして、ルートURL（/）として登録する
       params: { slug: slug === 'index' ? undefined : slug },
-      props: { entry }, // 下のメイン処理（Astro.props）へ、このファイルデータを引き渡す
+      props: { entry },
     };
   });
 }
 
-// ─── 💾 サーバーサイド処理（ビルドまたはリクエスト時に動く処理） ───
-
 const { entry } = Astro.props;
-const { Content } = await render(entry); // Markdownの中身をHTMLコンポーネントに変換
+const { Content } = await render(entry);
 
-// ページのタイトルを決定（フロントマターにタイトルがなければ、ファイル名から拡張子を引いたものを採用）
 const pageTitle = entry.data.title || path.basename(entry.id, '.md');
 const currentAstroPath = Astro.url.pathname;
 
-// 🔌 【環境変数の取得】 .env からデバッグ有効フラグを読み込む（文字列の "true" かどうかで判定）
-const isDebugEnabled = import.meta.env.PUBLIC_ENABLE_DEBUG === 'true';
-
-/**
- * 🎯 【解決策の核心】正解URLレジストリ（辞書）の全自動生成
- * 現在のフォルダ位置から相対パスを計算すると破綻するため、Astroが持つ全ファイルの「正しいURL」の対応表をここで作る。
- */
-const allDocs = await getCollection('docs');
-const urlRegistry = allDocs.map(doc => {
-  const slug = doc.id.replace(/\/index\.md$/, '').replace(/\.md$/, '');
-  return {
-    filename: path.basename(doc.id, '.md'),           // 照合用の生の日本語ファイル名（例: "停電時業務継続記録"）
-    correctUrl: slug === 'index' ? '/' : `/${slug}`   // Astro公式の絶対パスURL（例: "/records/停電時業務継続記録"）
-  };
-});
-
-/**
- * 🔗 【本物の外部リンク自動抽出】
- * Markdownの本文テキスト（生のデータ）を正規表現でスキャンし、外部への http(s) リンクを自動的にもぎ取る。
- */
+// 外部リンク抽出ロジック
 const rawContent = entry.body || '';
-// Markdownの表記法である [表示文字](URL) のパターンを探す正規表現（カッコ内のURLはhttpから始まるもの限定）
 const mdLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
-const detectedExternalLinks = [];
+const detectedExternalLinks: { title: string; url: string }[] = [];
 let match;
-
 while ((match = mdLinkRegex.exec(rawContent)) !== null) {
-  const [_, linkText, linkUrl] = match;
-  const cleanUrl = linkUrl.trim(); // 末尾に余計な空白が入っていた場合の安全トリミング
-  
-  // まだリストに登録されていないURLであれば、重複を避けて配列へ格納
-  if (!detectedExternalLinks.some(l => l.url === cleanUrl)) {
-    detectedExternalLinks.push({
-      title: linkText.trim(),
-      url: cleanUrl
-    });
+  const [_, title, url] = match;
+  if (!detectedExternalLinks.some(l => l.url === url.trim())) {
+    detectedExternalLinks.push({ title: title.trim(), url: url.trim() });
   }
 }
 ---
 
 <BaseLayout title={pageTitle} externalLinks={detectedExternalLinks}>
-  
-  {isDebugEnabled && (
-    <div style="background: #f8fafc; border: 2px solid #64748b; padding: 1.25rem; margin-bottom: 2rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: #1e293b;">
-      <p style="margin: 0 0 0.5rem 0; font-weight: bold; color: #334155; font-size: 1rem;">⚙️ システム内部認識ステータス (Debug Mode)</p>
-      <ul style="margin: 0 0 1rem 0; padding-left: 1.25rem; line-height: 1.5;">
-        <li><strong>解析中のファイルID（物理配置）:</strong> <span style="color: #059669; font-weight: bold;">{entry.id}</span></li>
-        <li><strong>Astroシステムが認識している現在のURLパス:</strong> <span style="color: #2563eb; font-weight: bold;">{currentAstroPath}</span></li>
-        <li><strong>自動検出された外部リンク数:</strong> <span style="color: #db2777; font-weight: bold;">{detectedExternalLinks.length} 件</span></li>
-      </ul>
-      <p style="margin: 1rem 0 0.25rem 0; font-weight: bold; color: #334155;">📋 ページ内Markdownリンクのリアルタイム補正ログ</p>
-      <div id="debug-log-area" style="background: white; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; max-height: 120px; overflow-y: auto; color: #475569; line-height: 1.6;">
-        ページ内のHTMLリンクをスキャン中...
-      </div>
-    </div>
-  )}
-
-  {/* 📦 サーバーサイドで作ったデータをフロントエンドのブラウザJSに引き渡すための隠しデータ格納庫 */}
-  <div 
-    id="astro-page-meta" 
-    data-registry={JSON.stringify(urlRegistry)} 
-    data-debug={isDebugEnabled ? "true" : "false"}
-  ></div>
+  <LinkDebugInfo 
+    entry={entry} 
+    externalLinks={detectedExternalLinks} 
+    currentPath={currentAstroPath} 
+  />
 
   <div class="markdown-content">
     <h1>{pageTitle}</h1>
     <Content />
   </div>
+
+  <LinkFixer mode="page" />
 </BaseLayout>
-
-
-<script>
-  function fixMarkdownLinksByRegistry() {
-    const metaEl = document.getElementById('astro-page-meta');
-    if (!metaEl) return;
-
-    // 隠しタグからデータをデコードしてJS内の変数に復元
-    const registry = JSON.parse(metaEl.getAttribute('data-registry') || '[]');
-    const isDebug = metaEl.getAttribute('data-debug') === 'true';
-    
-    // Markdown本文内にあるすべての <a> タグをスキャン
-    const links = document.querySelectorAll('.markdown-content a');
-    const logArea = document.getElementById('debug-log-area');
-    let logHtml = '';
-
-    links.forEach((link) => {
-      const originalHref = link.getAttribute('href');
-
-      if (originalHref) {
-        // ─────────────────────────────────────────────────────────────────
-        // 【パターン1】外部リンク（httpから始まる場合）の処理
-        // ─────────────────────────────────────────────────────────────────
-        if (originalHref.startsWith('http')) {
-          // 本文中の外部リンクをすべて「別タブで開く」仕様へと強制補正
-          link.setAttribute('target', '_blank');
-          link.setAttribute('rel', 'noopener noreferrer'); // セキュリティ・パフォーマンス上の安全対策
-          
-          if (isDebug) {
-            logHtml += `<span style="color: #64748b;">ℹ️ 外部リンク補正:</span> <span style="color:#b91c1c; font-size:0.8rem; font-weight:bold;">別タブ化 [OK]</span> ➔ "${originalHref}"<br/>`;
-          }
-        } 
-        // ─────────────────────────────────────────────────────────────────
-        // 【パターン2】内部リンク（相対パスや日本語ファイル名）の処理
-        // ─────────────────────────────────────────────────────────────────
-        else {
-          try {
-            // URLエンコード（%E3%83...）されている記述を人間に読める日本語に一度戻す
-            const decodedHref = decodeURIComponent(originalHref);
-            
-            // サーバーから貰った正解URL辞書（registry）の中から、
-            // 「リンクに書かれたファイル名」が「実際の登録ファイル名」と部分一致、または
-            // aタグのテキスト自体にファイル名が含まれている正規のオブジェクトをピンポイント検索する
-            const match = registry.find((item: any) => {
-              return decodedHref.includes(item.filename) || link.textContent?.includes(item.filename);
-            });
-
-            if (match) {
-              // 発見した正しい絶対URLパス（例: /records/停電時業務継続記録）で href を丸ごと上書き
-              // ※インターネット標準に則り、安全な％の形式（encodeURI）に変換してブラウザに与える
-              const cleanUrl = encodeURI(match.correctUrl);
-              link.setAttribute('href', cleanUrl);
-              
-              if (isDebug) {
-                logHtml += `<span style="color: #16a34a; font-weight:bold;">🎯 辞書一致成功</span> ➔ <code style="background:#f1f5f9; padding:2px 4px; border-radius:3px; color:#0f172a;">${cleanUrl}</code> <span style="color:#94a3b8; font-size:0.75rem;">(元の記述: ${originalHref})</span><br/>`;
-              }
-            } else {
-              // 辞書（docsコレクション）にないタイポや、リンクミスがあった場合の警告
-              if (isDebug) {
-                logHtml += `<span style="color: #d97706; font-weight:bold;">⚠️ 辞書に未登録</span> ➔ "${originalHref}" に一致するファイル名がありません<br/>`;
-              }
-            }
-          } catch (e) {
-            if (isDebug) {
-              logHtml += `<span style="color: #dc2626; font-weight:bold;">❌ 解析エラー</span> ➔ "${originalHref}"<br/>`;
-            }
-          }
-        }
-      }
-    });
-
-    // ログエリアが存在し、かつデバッグモードがONなら画面の検証ログに結果を流し込む
-    if (isDebug && logArea) {
-      logArea.innerHTML = logHtml || '<span style="color: #94a3b8; italic;">このページ内に処理対象のリンクはありません。</span>';
-    }
-  }
-
-  // DOM（HTML要素）の組み立てが完了した瞬間にリンク補正を実行
-  document.addEventListener('DOMContentLoaded', fixMarkdownLinksByRegistry);
-</script>
