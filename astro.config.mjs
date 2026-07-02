@@ -6,6 +6,10 @@ export default defineConfig({
   base: process.env.BASE_PATH || '/',  
   vite: {
     plugins: [tailwindcss()],
+		server: {
+			watch: {
+				usePolling: true,
+			},
+		},
   },
-  // 複雑なレガシー設定とカスタムプラグインを削除
 });
