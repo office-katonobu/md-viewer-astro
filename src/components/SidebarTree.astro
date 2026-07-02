@@ -1,0 +1,40 @@
+---
+// src/components/SidebarTree.astro
+import type { SidebarTree } from '../utils/sidebar';
+
+interface Props {
+  tree: SidebarTree;
+}
+
+const { tree } = Astro.props;
+---
+
+<ul class="pl-3 list-none space-y-1 border-l border-slate-100 ml-1">
+  {tree.files.map((file) => (
+    <li>
+      <a 
+        href={encodeURI(file.url)} 
+        data-raw-url={file.url} 
+        class="sidebar-file block py-1.5 px-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors no-underline"
+      >
+        {file.isIndex ? `📑 概要 (index)` : `📄 ${file.title}`}
+      </a>
+    </li>
+  ))}
+
+  {Object.keys(tree.folders).map((folderName) => {
+    const folder = tree.folders[folderName];
+    return (
+      <li>
+        <details class="group" data-folder-raw={folderName} data-folder-encoded={encodeURIComponent(folderName)}>
+          <summary class="font-medium text-sm text-slate-700 hover:text-slate-900 cursor-pointer list-none py-1 px-2 rounded-lg hover:bg-slate-50 flex items-center justify-between">
+            <span class="flex items-center gap-1.5">📁 {folderName}</span>
+            <span class="text-xs text-slate-400 group-open:rotate-90 transition-transform">▶</span>
+          </summary>
+          {/* 自分自身を再帰呼び出し */}
+          <Astro.self tree={folder} />
+        </details>
+      </li>
+    );
+  })}
+</ul>
