@@ -1,0 +1,42 @@
+---
+// src/components/LinkFixer.astro
+import { getCollection } from 'astro:content';
+// 型をインポート 
+import type { CollectionEntry } from 'astro:content'; 
+
+// docsコレクションの型を取得
+type DocEntry = CollectionEntry<'docs'>;
+
+const allDocs = await getCollection('docs');
+// id と ファイル名 の対応表だけ作成
+const urlRegistry = allDocs.map((doc: DocEntry) => ({
+  filename: doc.id.split('/').pop()?.replace(/\.md$/, ''),
+  id: doc.id // ここをアンカーIDとして使用
+}));
+---
+
+<script define:vars={{ urlRegistry }}>
+  function fixMarkdownLinks() {
+    // .markdown-content 内の全リンクを取得
+    const links = document.querySelectorAll('.markdown-content a');
+
+    links.forEach((link) => {
+      const originalHref = link.getAttribute('href');
+      // 外部サイトや、すでに#で始まるアンカーリンクは除外
+      if (!originalHref || originalHref.startsWith('http') || originalHref.startsWith('#')) return;
+
+      const decodedHref = decodeURIComponent(originalHref);
+      
+      // 辞書の中から、リンク先のファイル名に対応する ID を検索
+      const match = urlRegistry.find((item) => decodedHref.includes(item.filename));
+
+      if (match) {
+        // 【重要】URLへの遷移ではなく、ページ内アンカー #id への書き換え
+        link.setAttribute('href', '#' + match.id);
+      }
+    });
+  }
+
+  // 即時実行
+  fixMarkdownLinks();
+</script>

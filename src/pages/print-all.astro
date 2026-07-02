@@ -1,0 +1,112 @@
+---
+// src/pages/print-all.astro
+import { getCollection } from 'astro:content';
+// 型をインポート 
+import type { CollectionEntry } from 'astro:content'; 
+// markdown link fixer コンポーネントをインポート
+import LinkFixer from '../components/LinkFixer.astro';
+
+// docsコレクションの型を取得
+type DocEntry = CollectionEntry<'docs'>;
+
+// ドキュメントコレクションを取得
+const allDocs = await getCollection('docs');
+
+// ソート処理：index.md を先頭にし、それ以外は ID の昇順で並べる
+allDocs.sort((a:DocEntry, b:DocEntry) => {
+  if (a.id.endsWith('index')) return -1;
+  if (b.id.endsWith('index')) return 1;
+  return a.id.localeCompare(b.id);
+});
+
+// 一式のタイトル
+const printSetTitle = "監査用ドキュメント一式";
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>一括印刷用ドキュメント</title>
+    <style>
+      /* 基本：印刷専用リンクは画面上では消す */
+      .print-only {
+          display: none;
+      }
+
+      /* 印刷時のレイアウト制御 */
+      @media print {
+        @page { margin: 20mm; }
+        .no-print { display: none !important; }
+        
+        /* 各ドキュメントごとに改ページ */
+        .print-section {
+          page-break-after: always;
+        }
+
+        /* 印刷時に不要な装飾を消す */
+        .table-of-contents { page-break-after: always; }
+
+        /* 印刷時は表示する */
+        .print-only {
+          display: block !important;
+        }
+      }
+
+      /* --- 画面表示用の境界線 --- */
+      /* 最初のarticle以外の上の境界線を表示 */
+      .print-section + .print-section {
+        border-top: 4px solid #e2e8f0; /* 薄いグレーの太い線 */
+        margin-top: 4rem;
+        padding-top: 4rem;
+      }
+
+      @media print {
+        /* 印刷時は境界線を消して、改ページのみに任せる */
+        .print-section + .print-section {
+        border-top: none;
+        margin-top: 0;
+        padding-top: 0;
+        }
+      }
+      
+      /* 画面表示時の共通スタイル */
+      body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 2rem; }
+      .doc-header { border-bottom: 2px solid #333; margin-bottom: 2rem; padding-bottom: 1rem; }
+      .table-of-contents { border: 1px solid #ccc; padding: 1.5rem; margin-bottom: 3rem; }
+      .no-print { margin-bottom: 1rem; padding: 0.5rem 1rem; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <button class="no-print" onclick="window.print()">このドキュメント一式を印刷する</button>
+
+    <nav class="table-of-contents" id="toc">
+      <h1>{printSetTitle} 目次</h1>
+      <ul>
+        {allDocs.map((doc: DocEntry) => (
+          <li>
+            <a href={`#${doc.id}`}>{doc.data.title || doc.id}</a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+    {allDocs.map((doc: DocEntry) => (
+      <article id={doc.id} class="print-section">
+        <header class="doc-header">
+          <h1>{printSetTitle} - {doc.data.title || doc.id}</h1>
+          <a href="#toc" style="font-size: 0.9rem;">↑ 目次に戻る</a>
+        </header>
+        
+        <div class="markdown-content">
+          <div set:html={doc.rendered.html} />
+        </div>
+
+        <footer class="no-print-screen print-only" style="margin-top: 2rem; border-top: 1px dashed #ccc; padding-top: 1rem;">
+          <a href="#toc">↑ 目次に戻る</a>
+        </footer>
+      </article>
+    ))}
+    <LinkFixer />
+  </body>
+</html>
