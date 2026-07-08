@@ -17,17 +17,19 @@ const allDocs: CollectionEntry<'docs'>[] = await getCollection('docs');
 const tree = buildSidebarTree(allDocs);
 ---
 
-<html lang="ja">
+<html lang="ja" class="h-full">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <title>{title}</title>
   </head>
-  <body class="bg-slate-50 text-slate-800">
-    <div id="app-container" class="flex min-h-screen max-w-7xl mx-auto">
+  <body class="bg-slate-50 text-slate-800 h-full overflow-hidden">
+    
+    <div id="app-container" class="flex h-screen max-w-7xl mx-auto">
+      
       <aside
         id="sidebar"
-        class="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 p-6 shadow-xl transition-transform duration-300 md:static md:translate-x-0 -translate-x-full h-screen overflow-y-auto flex flex-col justify-between"
+        class="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 p-6 shadow-xl transition-transform duration-300 md:static md:translate-x-0 -translate-x-full h-full overflow-y-auto flex flex-col shrink-0"
       >
         <div class="flex justify-between items-center md:hidden mb-6">
           <span class="font-bold text-slate-900">メニュー</span>
@@ -38,29 +40,12 @@ const tree = buildSidebarTree(allDocs);
           </button>
         </div>
         <div class="space-y-6">
-          <div>
-            <a href="/" class="text-xl font-bold text-slate-900 no-underline"
-              >ドキュメントTOP</a>
-          </div>
-          <nav class="space-y-6">
-            <SidebarTree tree={tree} />
-          </nav>
+          <div><a href="/" class="text-xl font-bold text-slate-900 no-underline">ドキュメントTOP</a></div>
+          <nav class="space-y-6"><SidebarTree tree={tree} /></nav>
         </div>
       </aside>
 
-      <header class="md:hidden fixed top-0 w-full h-16 bg-white border-b border-slate-200 flex items-center px-4 z-40">
-        <button id="menu-btn" aria-label="メニューを開く" class="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-        <span class="ml-4 font-semibold text-slate-900">MENU</span>
-      </header>
-
-      <div id="overlay" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden">
-      </div>
-
-      <main class="flex-1 bg-white p-6 md:p-12 mt-16 md:mt-0 overflow-x-hidden">
+      <main class="flex-1 h-full overflow-y-auto p-6 md:p-12">
         <div class="max-w-3xl mx-auto">
           <article class="prose prose-slate max-w-none">
             <slot />
@@ -68,11 +53,17 @@ const tree = buildSidebarTree(allDocs);
         </div>
       </main>
 
+      <header class="md:hidden fixed top-0 w-full h-16 bg-white border-b border-slate-200 flex items-center px-4 z-40">
+        <button id="menu-btn" class="p-2 text-slate-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
+      </header>
+      <div id="overlay" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
+
     </div>
+
 
     <script>
       const menuBtn = document.getElementById('menu-btn');
-      const closeBtn = document.getElementById('close-btn'); // 追加
+      const closeBtn = document.getElementById('close-btn');
       const sidebar = document.getElementById('sidebar');
       const overlay = document.getElementById('overlay');
 
@@ -92,7 +83,7 @@ const tree = buildSidebarTree(allDocs);
       }
 
       menuBtn?.addEventListener('click', () => toggleMenu(true));
-      closeBtn?.addEventListener('click', () => toggleMenu(false)); // 追加
+      closeBtn?.addEventListener('click', () => toggleMenu(false));
       overlay?.addEventListener('click', () => toggleMenu(false));
 
       function initSidebarDynamicBehavior() {
