@@ -1,0 +1,35 @@
+---
+import { getCollection } from 'astro:content';
+
+const { entry } = Astro.props;
+
+// entry があればその id からカテゴリを判定
+const categories = ['アクセス確認', 'インシデント', 'プロジェクト終了', 'マネジメントレビュー', '停電時業務継続', '内部監査', '教育訓練', '災害時対応', '脅威インテリジェンス'];
+const currentCategory = entry ? categories.find(cat => entry.id.includes(cat)) : null;
+
+let relatedFiles: any[] = [];
+if (currentCategory) {
+  const allDocs = await getCollection('docs');
+  relatedFiles = allDocs.filter(doc => 
+    doc.id.includes(currentCategory) && 
+    doc.id !== entry.id
+  );
+}
+---
+
+{relatedFiles.length > 0 && (
+  <div class="my-0 px-2 py-1 bg-slate-50 rounded not-prose">
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">関連:</span>
+      <ul class="flex flex-wrap gap-x-3 gap-y-0.5 m-0 p-0 list-none">
+        {relatedFiles.map(doc => (
+          <li class="m-0 p-0">
+            <a href={`/docs/${doc.id}`} class="text-xs text-blue-600 hover:underline block leading-none">
+              {doc.data.title || doc.id.split('/').pop()?.replace('.md', '')}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+)}
