@@ -41,7 +41,10 @@ const tree = buildSidebarTree(allDocs);
         </div>
         <div class="space-y-6">
           <div><a href="/" class="text-xl font-bold text-slate-900 no-underline">ドキュメントTOP</a></div>
-          <nav class="space-y-6"><SidebarTree tree={tree} /></nav>
+          <nav class="space-y-6">
+            <SidebarTree tree={tree} />
+            <ExternalLinks links={externalLinks} />
+          </nav>
         </div>
       </aside>
 
