@@ -18,10 +18,10 @@ const { links:externalLinks } = Astro.props;
             href={link.url} 
             target="_blank" 
             rel="noopener noreferrer" 
-            class="block py-1.5 px-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors no-underline flex items-center justify-between group"
+            class="block py-1.5 px-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors no-underline items-center justify-between group"
             >
             <span class="truncate pr-2">🔗 {link.title}</span>
-            <span class="text-xs text-slate-300 group-hover:text-slate-400 transition-colors flex-shrink-0">↗</span>
+            <span class="text-xs text-slate-300 group-hover:text-slate-400 transition-colors shrink-0">↗</span>
             </a>
         </li>
         ))}
