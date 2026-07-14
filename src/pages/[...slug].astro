@@ -5,6 +5,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import LinkFixer from '../components/LinkFixer.astro';
 import LinkDebugInfo from '../components/LinkDebugInfo.astro';
 import RelatedLinks from '../components/RelatedLinks.astro';
+import Footer from '../components/Footer.astro'
 import path from 'node:path';
 
 export async function getStaticPaths() {
@@ -51,4 +52,5 @@ while ((match = mdLinkRegex.exec(rawContent)) !== null) {
   </div>
 
   <LinkFixer mode="page" />
+  <Footer />
 </BaseLayout>

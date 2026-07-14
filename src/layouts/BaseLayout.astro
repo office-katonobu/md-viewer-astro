@@ -9,6 +9,7 @@ import type { CollectionEntry } from 'astro:content';
 import { buildSidebarTree } from '../utils/sidebar';
 import SidebarTree from '../components/SidebarTree.astro';
 import ExternalLinks from '../components/ExternalLinks.astro';
+import BaseHead from './BaseHead.astro'
 
 const { title, externalLinks = [] } = Astro.props;
 const allDocs: CollectionEntry<'docs'>[] = await getCollection('docs');
@@ -19,9 +20,7 @@ const tree = buildSidebarTree(allDocs);
 
 <html lang="ja" class="h-full">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>{title}</title>
+    <BaseHead title={title}/>
   </head>
   <body class="bg-slate-50 text-slate-800 h-full overflow-hidden">
     
