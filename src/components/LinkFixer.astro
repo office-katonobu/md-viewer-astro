@@ -83,5 +83,6 @@ const urlRegistry = allDocs.map((doc) => {
   }
 
   // 実行
-  fixLinks();
+  document.addEventListener("astro:page-load", fixLinks)
+
 </script>

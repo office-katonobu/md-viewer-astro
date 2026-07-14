@@ -127,7 +127,7 @@ const tree = buildSidebarTree(allDocs);
         });
       }
 
-      document.addEventListener('DOMContentLoaded', initSidebarDynamicBehavior);
+      document.addEventListener("astro:page-load", initSidebarDynamicBehavior)
     </script>
   </body>
 </html>
