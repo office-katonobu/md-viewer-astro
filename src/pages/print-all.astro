@@ -20,7 +20,7 @@ allDocs.sort((a:DocEntry, b:DocEntry) => {
 });
 
 // 一式のタイトル
-const printSetTitle = "監査用ドキュメント一式";
+const printSetTitle = "ISO-27001 ドキュメント一式";
 ---
 
 <!DOCTYPE html>
@@ -28,16 +28,36 @@ const printSetTitle = "監査用ドキュメント一式";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
     <title>一括印刷用ドキュメント</title>
     <style>
       /* 基本：印刷専用リンクは画面上では消す */
       .print-only {
           display: none;
       }
-
       /* 印刷時のレイアウト制御 */
       @media print {
-        @page { margin: 20mm; }
+        @page {
+          margin: 20mm; 
+
+          @top-left {
+            content: "office-katonobu";
+            font-size: 8pt;
+          }
+          @top-right {
+            content: "ISO-27001 ドキュメントサンプル";
+            font-size: 8pt;
+          }
+
+          @bottom-left {
+            content: "© 2026 katonobu. All rights reserved.";
+            font-size: 8pt;
+          }
+          @bottom-right {
+            content: counter(page) " / " counter(pages);
+            font-size: 8t;
+          }          
+        }
         .no-print { display: none !important; }
         
         /* 各ドキュメントごとに改ページ */
@@ -52,6 +72,14 @@ const printSetTitle = "監査用ドキュメント一式";
         .print-only {
           display: block !important;
         }
+
+        /* 印刷時は境界線を消して、改ページのみに任せる */
+        .print-section + .print-section {
+          border-top: none;
+          margin-top: 0;
+          padding-top: 0;
+        }
+
       }
 
       /* --- 画面表示用の境界線 --- */
@@ -62,15 +90,6 @@ const printSetTitle = "監査用ドキュメント一式";
         padding-top: 4rem;
       }
 
-      @media print {
-        /* 印刷時は境界線を消して、改ページのみに任せる */
-        .print-section + .print-section {
-        border-top: none;
-        margin-top: 0;
-        padding-top: 0;
-        }
-      }
-      
       /* 画面表示時の共通スタイル */
       body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 2rem; }
       .doc-header { border-bottom: 2px solid #333; margin-bottom: 2rem; padding-bottom: 1rem; }
