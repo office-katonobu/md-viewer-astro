@@ -73,29 +73,31 @@ const tree = buildSidebarTree(allDocs);
 
 
     <script>
-      const menuBtn = document.getElementById('menu-btn');
-      const closeBtn = document.getElementById('close-btn');
-      const sidebar = document.getElementById('sidebar');
-      const overlay = document.getElementById('overlay');
-
-      function toggleMenu(show: boolean): void {
+      function InitMenuToggle() {
+        const menuBtn = document.getElementById('menu-btn');
+        const closeBtn = document.getElementById('close-btn');
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('overlay');
 
-        if (!sidebar || !overlay) return; // 念のための安全策
+        function toggleMenu(show: boolean): void {
+          const sidebar = document.getElementById('sidebar');
+          const overlay = document.getElementById('overlay');
 
-        if (show) {
-          sidebar.classList.remove('-translate-x-full');
-          overlay.classList.remove('hidden');
-        } else {
-          sidebar.classList.add('-translate-x-full');
-          overlay.classList.add('hidden');
+          if (!sidebar || !overlay) return; // 念のための安全策
+
+          if (show) {
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+          } else {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+          }
         }
+        menuBtn?.addEventListener('click', () => toggleMenu(true));
+        closeBtn?.addEventListener('click', () => toggleMenu(false));
+        overlay?.addEventListener('click', () => toggleMenu(false));
       }
-
-      menuBtn?.addEventListener('click', () => toggleMenu(true));
-      closeBtn?.addEventListener('click', () => toggleMenu(false));
-      overlay?.addEventListener('click', () => toggleMenu(false));
+      document.addEventListener("astro:page-load", InitMenuToggle)
 
       function initSidebarDynamicBehavior() {
         const currentPath = window.location.pathname.replace(/^\/|\/$/g, '');
